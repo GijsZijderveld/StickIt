@@ -12,6 +12,10 @@ export const HomeScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
+        <View style={styles.brandingContainer}>
+        <Text style={styles.stickText}>STICK</Text>
+        <Text style={styles.itText}>IT</Text>
+        </View>
       <MenuButton 
         title="Players" 
         icon={<Users color={COLORS.secondary} />} 
@@ -51,5 +55,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
     marginTop: 30, gap: 10 
   },
-  playText: { color: COLORS.background, fontSize: 24, fontWeight: '900' }
+  playText: { color: COLORS.background, fontSize: 24, fontWeight: '900' },
+  brandingContainer: {
+    alignItems: 'center',
+    marginTop: 60,
+    marginBottom: 40,
+  },
+  stickText: {
+    fontSize: 64,
+    fontWeight: '900',
+    color: COLORS.text, // Black or your standard text color
+    letterSpacing: 4,
+  },
+  itText: {
+    fontSize: 80,
+    fontWeight: '900',
+    color: COLORS.primary, // Your primary red color
+    marginTop: -20, // Pulls it closer to "STICK"
+  },
 });

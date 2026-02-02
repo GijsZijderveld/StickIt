@@ -42,7 +42,7 @@ export default function App() {
           contentStyle: { backgroundColor: COLORS.background },
         }}
       >
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Stick It Hub' }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Players" component={PlayersScreen} />
         <Stack.Screen name="Rules" component={RulesScreen} />
         <Stack.Screen name="Data" component={HistoryScreen} />

@@ -2,12 +2,15 @@
   "expo": {
     "name": "Stick It",
     "slug": "stick-it",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": {
-      "backgroundColor": "#FCF7F8"
-    },
     "android": {
       "package": "com.stickit.app"
     },
