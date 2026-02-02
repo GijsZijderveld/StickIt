@@ -11,6 +11,7 @@ export const GameScreen = ({ route, navigation }: any) => {
   const { teams } = route.params; 
   const isFocused = useIsFocused();
   const [dbJumpOrder, setDbJumpOrder] = useState<string[]>([]);
+  const [dbChoiceCount, setDbChoiceCount] = useState<number>(2);
   const [library, setLibrary] = useState<string[]>([]);
   const [selectedChoiceJumps, setSelectedChoiceJumps] = useState<Record<number, Record<number, string>>>({});
   const [isPickerVisible, setIsPickerVisible] = useState(false);
@@ -20,16 +21,20 @@ export const GameScreen = ({ route, navigation }: any) => {
   const loadData = async () => {
     try {
       // Clean, high-level service calls
-      const [savedSequence, fullLibrary] = await Promise.all([
+      const [savedData, fullLibrary] = await Promise.all([
         getSavedOrder(),
         getJumpLibrary()
       ]);
+
+      const savedSequence = savedData.sequence;
+      const savedChoiceCount = savedData.choiceCount;
 
       if (savedSequence.length === 0) {
         Alert.alert("No Rules", "Please set a jump order in the Rules tab first!");
       }
       
       setDbJumpOrder(savedSequence);
+      setDbChoiceCount(savedChoiceCount);
       setLibrary(fullLibrary);
       
     } catch (error) {
@@ -66,7 +71,7 @@ export const GameScreen = ({ route, navigation }: any) => {
     setIsPickerVisible(false);
   };
 
-  // Use the new hook signature: (teams, jumpOrder, onMatchComplete)
+  // Use the new hook signature: (teams, jumpOrder, choiceCount, onMatchComplete)
   const {
     teams: activeTeams,
     activeTeam,
@@ -75,7 +80,7 @@ export const GameScreen = ({ route, navigation }: any) => {
     turnNumber,
     handleOutcome,
     undoLastTurn,
-  } = useGameLogic(teams, dbJumpOrder, async (record: any) => {
+  } = useGameLogic(teams, dbJumpOrder, dbChoiceCount, async (record: any) => {
     try {
       const formattedParticipants = activeTeams.map(t => `${t.name}: ${t.players.map(p => p.name).join(', ')}`);
       await saveMatch({...record, participants: formattedParticipants});
@@ -108,8 +113,7 @@ export const GameScreen = ({ route, navigation }: any) => {
 
   const getCurrentJumpName = (position: number) => {
     if (position < dbJumpOrder.length) return dbJumpOrder[position];
-    if (position === dbJumpOrder.length) return "CHOICE JUMP 1";
-    if (position === dbJumpOrder.length + 1) return "FINAL CHOICE JUMP";
+    if (position < dbJumpOrder.length + dbChoiceCount) return `CHOICE JUMP ${position - dbJumpOrder.length + 1}`;
     return "MATCH COMPLETE";
   };
 

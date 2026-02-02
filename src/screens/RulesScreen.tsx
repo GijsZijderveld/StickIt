@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert 
 import { Plus, Trash2, ArrowDown } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import * as SQLite from 'expo-sqlite';
+import { getSavedOrder, getJumpLibrary } from '../services/database';
 import { useIsFocused } from '@react-navigation/native';
 
 export const RulesScreen = () => {
@@ -10,6 +11,7 @@ export const RulesScreen = () => {
   const [library, setLibrary] = useState<string[]>([]);
   const [newElement, setNewElement] = useState('');
   const [currentOrder, setCurrentOrder] = useState<string[]>([]);
+  const [choiceCount, setChoiceCount] = useState(2);
 
   useEffect(() => {
     if (isFocused) {
@@ -18,19 +20,13 @@ export const RulesScreen = () => {
   }, [isFocused]); // Triggers refresh when you enter the screen
 
   const loadData = async () => {
-    const db = await SQLite.openDatabaseAsync('stickit.db'); // Use the shared instance
-    
-    // 1. Load the Library
-    const elements = await db.getAllAsync<{name: string}>('SELECT name FROM jump_elements');
-    setLibrary(elements.map(e => e.name));
+    // Use the service helpers
+    const elements = await getJumpLibrary();
+    setLibrary(elements);
 
-    // 2. Load the Saved Order
-    const savedOrder = await db.getFirstAsync<{sequence: string}>(
-      'SELECT sequence FROM jump_orders WHERE id = 1'
-    );
-    if (savedOrder) {
-      setCurrentOrder(JSON.parse(savedOrder.sequence));
-    }
+    const saved = await getSavedOrder();
+    setCurrentOrder(saved.sequence);
+    setChoiceCount(saved.choiceCount);
   };
   useEffect(() => { loadData(); }, []);
 
@@ -59,11 +55,11 @@ export const RulesScreen = () => {
     }
     const db = await SQLite.openDatabaseAsync('stickit.db');
     // We save this as the 'default' order
-    await db.runAsync(
-        'INSERT OR REPLACE INTO jump_orders (id, name, sequence) VALUES (1, ?, ?);',
-        ['Standard Game', JSON.stringify(currentOrder)]
-    );
-    Alert.alert("Success", "Game order saved for your next match!");
+  await db.runAsync(
+    'INSERT OR REPLACE INTO jump_orders (id, name, sequence, choice_count) VALUES (1, ?, ?, ?);',
+    ['Standard Game', JSON.stringify(currentOrder), choiceCount]
+  );
+  Alert.alert("Success", "Game rules saved!");
     };
 
     
@@ -93,6 +89,20 @@ export const RulesScreen = () => {
                     <Text style={styles.chipText}>+ {item}</Text>
                 </TouchableOpacity>
             ))}
+        </View>
+
+        {/* Choice Jumps Counter */}
+        <View style={styles.choiceHeader}>
+          <Text style={styles.header}>Choice Jumps</Text>
+          <View style={styles.counterRow}>
+            <TouchableOpacity onPress={() => setChoiceCount(Math.max(1, choiceCount - 1))} style={styles.countBtn}>
+              <Text style={styles.countBtnText}>-</Text>
+            </TouchableOpacity>
+            <Text style={styles.countValue}>{choiceCount}</Text>
+            <TouchableOpacity onPress={() => setChoiceCount(choiceCount + 1)} style={styles.countBtn}>
+              <Text style={styles.countBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 3. ACTIVE ORDER SECTION */}
@@ -135,6 +145,38 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 12,
     marginTop: 8,
+  },
+  choiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countBtnText: {
+    color: COLORS.background,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  countValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: COLORS.text,
+    minWidth: 30,
+    textAlign: 'center',
   },
   orderHeaderRow: {
     flexDirection: 'row',

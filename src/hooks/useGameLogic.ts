@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Team, GameEvent, MatchStats } from '../types';
 
-export const useGameLogic = (initialTeams: Team[], jumpOrder: string[], onMatchComplete: any) => {
+export const useGameLogic = (initialTeams: Team[], jumpOrder: string[], choiceCount: number, onMatchComplete: any) => {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
   const [history, setHistory] = useState<GameEvent[]>([]);
   const [winner, setWinner] = useState<string | null>(null);
   const [extraJumps, setExtraJumps] = useState(0); // Tracks sudden death rounds
 
-  const totalSteps = useMemo(() => jumpOrder.length + 2 + extraJumps, [jumpOrder, extraJumps]);
+  const totalSteps = useMemo(() => jumpOrder.length + choiceCount + extraJumps, [jumpOrder, choiceCount, extraJumps]);
 
   const turnIndex = history.length;
   const activeTeamIdx = turnIndex % teams.length;

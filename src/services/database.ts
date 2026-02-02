@@ -19,8 +19,8 @@ export const initDB = async () => {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS players (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS jump_elements (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE);
-    CREATE TABLE IF NOT EXISTS jump_orders (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, sequence TEXT);
+  CREATE TABLE IF NOT EXISTS jump_elements (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE);
+  CREATE TABLE IF NOT EXISTS jump_orders (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, sequence TEXT, choice_count INTEGER DEFAULT 2);
     
     -- Fixed: Combined match table with events column
     CREATE TABLE IF NOT EXISTS matches (
@@ -65,12 +65,15 @@ export const deletePlayer = async (id: number) => {
   await db.runAsync('DELETE FROM players WHERE id = ?;', [id]);
 };
 
-export const getSavedOrder = async (): Promise<string[]> => {
+export const getSavedOrder = async (): Promise<{ sequence: string[]; choiceCount: number }> => {
   const db = await getDB();
-  const row = await db.getFirstAsync<{ sequence: string }>(
-    'SELECT sequence FROM jump_orders WHERE id = 1'
+  const row = await db.getFirstAsync<{ sequence: string; choice_count: number }>(
+    'SELECT sequence, choice_count FROM jump_orders WHERE id = 1'
   );
-  return row ? JSON.parse(row.sequence) : [];
+  return {
+    sequence: row ? JSON.parse(row.sequence) : [],
+    choiceCount: row ? row.choice_count : 2,
+  };
 };
 
 export const saveMatch = async (record: Omit<MatchRecord, 'id'>) => {
