@@ -9,15 +9,16 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~50.0.14",
-    "expo-sqlite": "~13.4.0",
+    "expo": "^51.0.0",
+    "expo-sqlite": "~14.0.6",
     "lucide-react-native": "^0.379.0",
     "react": "18.2.0",
-    "react-native": "0.73.6"
+    "react-native": "0.74.5",
+    "react-native-svg": "15.2.0"
   },
   "devDependencies": {
     "@types/react": "~18.2.45",
-    "typescript": "^5.3.3"
+    "typescript": "~5.3.3"
   },
   "private": true
 }
