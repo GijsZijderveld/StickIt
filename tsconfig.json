@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "jsx": "react-native",
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  }
+}
