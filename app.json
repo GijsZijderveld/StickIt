@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Stick It",
+    "slug": "stick-it",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FCF7F8"
+    },
+    "android": {
+      "package": "com.stickit.app"
+    }
+  }
+}
