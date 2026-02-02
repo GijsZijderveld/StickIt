@@ -77,7 +77,8 @@ export const GameScreen = ({ route, navigation }: any) => {
     undoLastTurn,
   } = useGameLogic(teams, dbJumpOrder, async (record: any) => {
     try {
-      await saveMatch(record);
+      const formattedParticipants = activeTeams.map(t => `${t.name}: ${t.players.map(p => p.name).join(', ')}`);
+      await saveMatch({...record, participants: formattedParticipants});
     } catch (error) {
       Alert.alert('Database Error', 'Match results could not be saved.');
     }
@@ -104,7 +105,7 @@ export const GameScreen = ({ route, navigation }: any) => {
       routes: [{ name: 'Home' }],
     });
   };
-  
+
   const getCurrentJumpName = (position: number) => {
     if (position < dbJumpOrder.length) return dbJumpOrder[position];
     if (position === dbJumpOrder.length) return "CHOICE JUMP 1";
