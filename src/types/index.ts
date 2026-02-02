@@ -10,16 +10,24 @@ export interface Team {
   position: number;
 }
 
+export interface GameEvent {
+  teamId: number;
+  playerId: number;
+  playerName: string;
+  jumpName: string;
+  result: 'stick' | 'noStick' | 'fall';
+  previousPosition: number; // Required for a perfect "Undo"
+  isChoiceJump: boolean; // New optional field
+  choiceJumpNumber?: number; // New optional field
+}
+
 export interface MatchRecord {
-  id: number;
+  id?: number;
   date: string;
   winner: string;
   participants: string[];
-  stats: {
-    stick: number;
-    noStick: number;
-    fall: number;
-  };
+  stats: MatchStats;
+  events: GameEvent[]; // Add this line
 }
 
 export interface MatchStats {

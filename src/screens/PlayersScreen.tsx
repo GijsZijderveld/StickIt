@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 
 import { COLORS } from '../constants/theme';
-import { PlayerCard } from '../components/PlayerCard';
+import { PlayerCard } from '../components/PlayerCard'; 
 import { addPlayer, deletePlayer, getPlayers } from '../services/database';
 import { Player } from '../types';
 
@@ -13,6 +14,7 @@ type PlayersScreenProps = {
 export const PlayersScreen = ({ onPlayersUpdated }: PlayersScreenProps) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [playerName, setPlayerName] = useState('');
+  const isFocused = useIsFocused();
 
   const loadPlayers = useCallback(async () => {
     const data = await getPlayers();
@@ -21,10 +23,10 @@ export const PlayersScreen = ({ onPlayersUpdated }: PlayersScreenProps) => {
   }, [onPlayersUpdated]);
 
   useEffect(() => {
-    loadPlayers().catch(() => {
-      Alert.alert('Database Error', 'Unable to load players.');
-    });
-  }, [loadPlayers]);
+    if (isFocused) {
+      loadPlayers();
+    }
+  }, [isFocused]);
 
   const handleAddPlayer = async () => {
     if (!playerName.trim()) {

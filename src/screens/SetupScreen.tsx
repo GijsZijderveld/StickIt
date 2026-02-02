@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import { getPlayers } from '../services/database';
 import { Player, Team } from '../types';
-
-const BONUS_JUMPS = ['Bonus Jump', 'Final Bonus'];
 
 type SetupScreenProps = {
   onStartGame: (data: { teams: Team[]; jumpOrder: string[] }) => void;
 };
 
-export const SetupScreen = ({ onStartGame }: SetupScreenProps) => {
+export const SetupScreen = ({ navigation }: any) => { 
+  const isFocused = useIsFocused();
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
-  const [teamSize, setTeamSize] = useState('2');
-  const [jumpOrderInput, setJumpOrderInput] = useState('Frontside, Backside, 360');
-  const [bonusEnabled, setBonusEnabled] = useState(false);
+  const [numberOfTeams, setNumberOfTeams] = useState('2'); // Changed from team size to number of teams
 
   const loadPlayers = useCallback(async () => {
     const data = await getPlayers();
@@ -24,73 +21,61 @@ export const SetupScreen = ({ onStartGame }: SetupScreenProps) => {
   }, []);
 
   useEffect(() => {
-    loadPlayers().catch(() => {
-      Alert.alert('Database Error', 'Unable to load players.');
-    });
-  }, [loadPlayers]);
-
-  const jumpOrder = useMemo(() => {
-    const base = jumpOrderInput
-      .split(',')
-      .map((jump) => jump.trim())
-      .filter(Boolean);
-    return bonusEnabled ? [...base, ...BONUS_JUMPS] : base;
-  }, [jumpOrderInput, bonusEnabled]);
+    if (isFocused) {
+      loadPlayers().catch(() => Alert.alert('Error', 'Unable to load players.'));
+    }
+  }, [isFocused, loadPlayers]);
 
   const togglePlayerSelection = (id: number) => {
     setSelectedPlayers((prev) =>
-      prev.includes(id) ? prev.filter((playerId) => playerId !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
     );
   };
 
-  const shufflePlayers = (list: Player[]) => {
-    const copy = [...list];
-    for (let i = copy.length - 1; i > 0; i -= 1) {
+  const shuffleArray = (array: any[]) => {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
+      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
     }
-    return copy;
+    return newArr;
   };
 
   const generateTeams = () => {
-    const size = Number(teamSize);
-    if (!size || size <= 0) {
-      Alert.alert('Team Size', 'Enter a valid team size.');
+    const numTeams = parseInt(numberOfTeams);
+    if (isNaN(numTeams) || numTeams < 2) {
+      Alert.alert('Teams', 'Please specify at least 2 teams.');
       return;
     }
-    if (selectedPlayers.length < size) {
-      Alert.alert('Players', 'Select enough players to fill at least one team.');
-      return;
-    }
-    if (jumpOrder.length === 0) {
-      Alert.alert('Jump Order', 'Enter at least one jump.');
+    if (selectedPlayers.length < numTeams) {
+      Alert.alert('Players', 'You need at least one player per team.');
       return;
     }
 
-    const selected = players.filter((player) => selectedPlayers.includes(player.id));
-    const shuffled = shufflePlayers(selected);
-    const nextTeams: Team[] = [];
-    let teamIndex = 0;
+    const selected = players.filter((p) => selectedPlayers.includes(p.id));
+    const shuffled = shuffleArray(selected);
+    
+    const nextTeams: Team[] = Array.from({ length: numTeams }, (_, i) => ({
+      id: i + 1,
+      name: `Team ${i + 1}`,
+      players: [],
+      position: 0,
+    }));
 
-    for (let i = 0; i < shuffled.length; i += size) {
-      const chunk = shuffled.slice(i, i + size);
-      teamIndex += 1;
-      nextTeams.push({
-        id: teamIndex,
-        name: `Team ${teamIndex}`,
-        players: chunk,
-        position: 0,
-      });
-    }
+    shuffled.forEach((player, index) => {
+      const teamIndex = index % numTeams;
+      nextTeams[teamIndex].players.push(player);
+    });
 
-    // Pass the teams + jump order up to App so GameScreen can start the match.
-    onStartGame({ teams: nextTeams, jumpOrder });
+    // 2. Navigate to 'Game' and pass the teams through route params
+    navigation.navigate('Game', { teams: nextTeams }); 
   };
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.sectionTitle}>Match Setup</Text>
-      <Text style={styles.label}>Select Players</Text>
+      
+      <Text style={styles.label}>Who is playing today?</Text>
       <View style={styles.selectionGrid}>
         {players.map((player) => (
           <TouchableOpacity
@@ -101,33 +86,35 @@ export const SetupScreen = ({ onStartGame }: SetupScreenProps) => {
             ]}
             onPress={() => togglePlayerSelection(player.id)}
           >
-            <Text
-              style={[
+            <Text style={[
                 styles.selectionChipText,
                 selectedPlayers.includes(player.id) && styles.selectionChipTextActive,
-              ]}
-            >
+            ]}>
               {player.name}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
-      <Text style={styles.label}>Team Size</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={teamSize}
-        onChangeText={setTeamSize}
-      />
-      <Text style={styles.label}>Jump Order (comma separated)</Text>
-      <TextInput style={styles.input} value={jumpOrderInput} onChangeText={setJumpOrderInput} />
-      <TouchableOpacity style={styles.toggleRow} onPress={() => setBonusEnabled(!bonusEnabled)}>
-        <View style={[styles.toggle, bonusEnabled && styles.toggleActive]} />
-        <Text style={styles.toggleLabel}>Bonus Jump Finale</Text>
-      </TouchableOpacity>
+
+      <View style={styles.settingsRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Number of Teams</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            value={numberOfTeams}
+            onChangeText={setNumberOfTeams}
+          />
+        </View>
+      </View>
+
       <TouchableOpacity style={styles.primaryButtonWide} onPress={generateTeams}>
-        <Text style={styles.primaryButtonText}>Generate Teams</Text>
+        <Text style={styles.primaryButtonText}>Start Game</Text>
       </TouchableOpacity>
+      
+      <Text style={styles.infoText}>
+        The game will use the jump order saved in your Rules tab.
+      </Text>
     </ScrollView>
   );
 };
@@ -206,5 +193,18 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: COLORS.background,
     fontWeight: '700',
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 15,
+  },
+  infoText: {
+    color: COLORS.secondary,
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });

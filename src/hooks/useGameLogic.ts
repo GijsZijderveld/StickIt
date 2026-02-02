@@ -1,108 +1,94 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useState, useMemo } from 'react';
+import { Team, GameEvent, MatchStats } from '../types';
 
-import { MatchStats, Team } from '../types';
-
-type Outcome = 'stick' | 'noStick' | 'fall';
-
-type UseGameLogicArgs = {
-  initialTeams: Team[];
-  jumpOrder: string[];
-  onMatchComplete?: (data: {
-    winner: string;
-    participants: string[];
-    stats: MatchStats;
-    date: string;
-  }) => void;
-};
-
-const clampPosition = (position: number, max: number) =>
-  Math.max(0, Math.min(position, max));
-
-// Keeps match state localized and reports the winner upward when the match ends.
-export const useGameLogic = ({
-  initialTeams,
-  jumpOrder,
-  onMatchComplete,
-}: UseGameLogicArgs) => {
+export const useGameLogic = (initialTeams: Team[], jumpOrder: string[], onMatchComplete: any) => {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
-  const [activeTeamId, setActiveTeamId] = useState<number | null>(null);
-  const [matchStats, setMatchStats] = useState<MatchStats>({
-    stick: 0,
-    noStick: 0,
-    fall: 0,
-  });
+  const [history, setHistory] = useState<GameEvent[]>([]);
   const [winner, setWinner] = useState<string | null>(null);
-  const hasReportedRef = useRef(false);
+  const [extraJumps, setExtraJumps] = useState(0); // Tracks sudden death rounds
 
-  useEffect(() => {
-    setTeams(initialTeams);
-    setActiveTeamId(initialTeams[0]?.id ?? null);
-    setMatchStats({ stick: 0, noStick: 0, fall: 0 });
-    setWinner(null);
-    hasReportedRef.current = false;
-  }, [initialTeams]);
+  const totalSteps = useMemo(() => jumpOrder.length + 2 + extraJumps, [jumpOrder, extraJumps]);
 
-  const updateTeamPosition = (teamId: number, delta: number) => {
-    setTeams((prev) =>
-      prev.map((team) => {
-        if (team.id !== teamId) {
-          return team;
-        }
-        const maxPosition = Math.max(0, jumpOrder.length - 1);
-        const next = clampPosition(team.position + delta, maxPosition);
-        return { ...team, position: next };
-      })
-    );
-  };
+  const turnIndex = history.length;
+  const activeTeamIdx = turnIndex % teams.length;
+  const activeTeam = teams[activeTeamIdx];
+  const isLastTeamInRound = activeTeamIdx === teams.length - 1; //
 
-  const handleOutcome = (type: Outcome) => {
-    if (!activeTeamId) {
-      return;
-    }
-    if (type === 'stick') {
-      updateTeamPosition(activeTeamId, 1);
-      setMatchStats((prev) => ({ ...prev, stick: prev.stick + 1 }));
-    }
-    if (type === 'noStick') {
-      setMatchStats((prev) => ({ ...prev, noStick: prev.noStick + 1 }));
-    }
-    if (type === 'fall') {
-      updateTeamPosition(activeTeamId, -2);
-      setMatchStats((prev) => ({ ...prev, fall: prev.fall + 1 }));
-    }
-  };
+  // Logic for alternating players within the team
+  const teamTurnCount = history.filter(h => h.teamId === activeTeam.id).length;
+  const activePlayer = activeTeam.players[teamTurnCount % activeTeam.players.length];
 
-  const participantNames = useMemo(
-    () => teams.flatMap((team) => team.players.map((player) => player.name)),
-    [teams]
-  );
+  
+  const handleOutcome = (result: 'stick' | 'noStick' | 'fall', manualJumpName?: string) => {
+    if (winner) return;
 
-  useEffect(() => {
-    if (jumpOrder.length === 0) {
-      return;
-    }
-    const winningTeam = teams.find((team) => team.position >= jumpOrder.length - 1);
-    if (winningTeam && !winner) {
-      const winnerName = winningTeam.name;
-      setWinner(winnerName);
-      if (!hasReportedRef.current && onMatchComplete) {
-        hasReportedRef.current = true;
+    const isOnChoice = activeTeam.position >= jumpOrder.length;
+    const currentJump = manualJumpName || (activeTeam.position < jumpOrder.length 
+      ? jumpOrder[activeTeam.position] 
+      : `Choice Jump ${activeTeam.position - jumpOrder.length + 1}`);
+
+    const event: GameEvent = {
+      teamId: activeTeam.id,
+      playerId: activePlayer.id,
+      playerName: activePlayer.name,
+      jumpName: currentJump,
+      result,
+      previousPosition: activeTeam.position,
+      isChoiceJump: isOnChoice, // New field
+      choiceJumpNumber: isOnChoice ? (activeTeam.position - jumpOrder.length + 1) : undefined // New field
+    };
+
+    const newHistory = [...history, event];
+    setHistory(newHistory);
+
+    // Update positions
+    const updatedTeams = teams.map(t => {
+      if (t.id !== activeTeam.id) return t;
+      let nextPos = t.position;
+      if (result === 'stick') nextPos += 1;
+      if (result === 'fall') nextPos = Math.max(0, nextPos - 2);
+      return { ...t, position: Math.min(nextPos, totalSteps) };
+    });
+
+    setTeams(updatedTeams);
+
+    // Check for Win
+    const teamsAtFinish = updatedTeams.filter(t => t.position >= totalSteps);
+
+    // Only check for a winner at the end of a full round (after the last team jumps)
+    if (isLastTeamInRound) {
+      if (teamsAtFinish.length === 1) {
+        const winningTeam = teamsAtFinish[0];
+        setWinner(winningTeam.name);
+
+        // TRIGGER THE SAVE
         onMatchComplete({
-          winner: winnerName,
-          participants: participantNames,
-          stats: matchStats,
+          winner: winningTeam.name,
           date: new Date().toISOString(),
+          participants: updatedTeams.flatMap(t => t.players.map(p => p.name)),
+          events: newHistory, // This saves every specific jump done
+          stats: {
+            stick: newHistory.filter(h => h.result === 'stick').length,
+            noStick: newHistory.filter(h => h.result === 'noStick').length,
+            fall: newHistory.filter(h => h.result === 'fall').length,
+          }
         });
+      } else if (teamsAtFinish.length > 1) {
+        setExtraJumps(prev => prev + 1);
       }
     }
-  }, [teams, jumpOrder.length, winner, matchStats, onMatchComplete, participantNames]);
-
-  return {
-    teams,
-    activeTeamId,
-    matchStats,
-    winner,
-    setActiveTeamId,
-    handleOutcome,
   };
+
+  const undoLastTurn = () => {
+    if (history.length === 0 || winner) return null;
+    const lastEvent = history[history.length - 1];
+    
+    setTeams(prev => prev.map(t => 
+      t.id === lastEvent.teamId ? { ...t, position: lastEvent.previousPosition } : t
+    ));
+    setHistory(prev => prev.slice(0, -1));
+    return lastEvent;
+  };
+
+  return { teams, activeTeam, activePlayer, winner, turnNumber: turnIndex + 1, handleOutcome, undoLastTurn };
 };

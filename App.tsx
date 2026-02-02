@@ -1,122 +1,54 @@
-import { useEffect, useState } from 'react';
-import { Alert, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { Swords, Trophy, Users } from 'lucide-react-native';
-
-import { NavButton } from './src/components/NavButton';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { COLORS } from './src/constants/theme';
-import { initDB } from './src/services/database';
-import { GameScreen } from './src/screens/GameScreen';
-import { HistoryScreen } from './src/screens/HistoryScreen';
+import { HomeScreen } from './src/screens/HomeScreen';
 import { PlayersScreen } from './src/screens/PlayersScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
-import { Team } from './src/types';
+import { GameScreen } from './src/screens/GameScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
+import { RulesScreen } from './src/screens/RulesScreen'; // You'll create this
+import { initDB } from './src/services/database';
+import { View, Text } from 'react-native';
 
-type ScreenKey = 'players' | 'setup' | 'game' | 'history';
+import { useEffect, useState } from 'react';
+const Stack = createNativeStackNavigator();
 
-type GameConfig = {
-  teams: Team[];
-  jumpOrder: string[];
-};
 
 export default function App() {
-  const [screen, setScreen] = useState<ScreenKey>('players');
-  const [gameConfig, setGameConfig] = useState<GameConfig>({ teams: [], jumpOrder: [] });
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
     initDB()
       .then(() => setDbReady(true))
-      .catch(() => {
-        Alert.alert('Database Error', 'Unable to initialize local storage.');
-      });
+      .catch(err => console.error("DB Init Error:", err));
   }, []);
 
-  const handleStartGame = (data: GameConfig) => {
-    // SetupScreen owns team generation and passes the roster up for GameScreen to run the match.
-    setGameConfig(data);
-    setScreen('game');
-  };
-
-  const handleResetMatch = () => {
-    // GameScreen notifies App when a match is done so we can return to setup.
-    setGameConfig({ teams: [], jumpOrder: [] });
-    setScreen('setup');
-  };
+  // IMPORTANT: Do not render the NavigationContainer until dbReady is true
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading Database...</Text>
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Stick It</Text>
-        <View style={styles.nav}>
-          <NavButton
-            icon={<Users color={COLORS.background} size={18} />}
-            label="Players"
-            active={screen === 'players'}
-            onPress={() => setScreen('players')}
-          />
-          <NavButton
-            icon={<Swords color={COLORS.background} size={18} />}
-            label="Setup"
-            active={screen === 'setup'}
-            onPress={() => setScreen('setup')}
-          />
-          <NavButton
-            icon={<Trophy color={COLORS.background} size={18} />}
-            label="History"
-            active={screen === 'history'}
-            onPress={() => setScreen('history')}
-          />
-        </View>
-      </View>
-
-      {dbReady ? (
-        <>
-          {screen === 'players' && <PlayersScreen />}
-          {screen === 'setup' && <SetupScreen onStartGame={handleStartGame} />}
-          {screen === 'game' && (
-            <GameScreen
-              teams={gameConfig.teams}
-              jumpOrder={gameConfig.jumpOrder}
-              onResetMatch={handleResetMatch}
-            />
-          )}
-          {screen === 'history' && <HistoryScreen />}
-        </>
-      ) : (
-        <View style={styles.loading}>
-          <Text style={styles.loadingText}>Loading local data…</Text>
-        </View>
-      )}
-    </SafeAreaView>
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerStyle: { backgroundColor: COLORS.primary },
+          headerTintColor: COLORS.background,
+          contentStyle: { backgroundColor: COLORS.background },
+        }}
+      >
+        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Stick It Hub' }} />
+        <Stack.Screen name="Players" component={PlayersScreen} />
+        <Stack.Screen name="Rules" component={RulesScreen} />
+        <Stack.Screen name="Data" component={HistoryScreen} />
+        <Stack.Screen name="Setup" component={SetupScreen} />
+        <Stack.Screen name="Game" component={GameScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    padding: 16,
-  },
-  title: {
-    color: COLORS.background,
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  nav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: COLORS.secondary,
-    fontWeight: '600',
-  },
-});
